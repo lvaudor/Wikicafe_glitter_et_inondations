@@ -1,0 +1,513 @@
+---
+title: 'Faire briller Wikidata aux yeux des chercheurs'
+title-slide-attributes:
+  data-background-image: img/image_title.png
+  data-background-size: contain
+subtitle: 'le package glitter et son utilisation pour étudier les inondations à travers les données Wikidata et Wikipedia.'
+author: "Lise Vaudor"
+institute: "WikiCafé"
+date: "2024/06/25"
+format: 
+  revealjs:
+    auto-stretch: false
+    embed-resources: true
+    df-print: kable
+    scrollable: true
+    logo: img/logo_small.png
+    css:
+     styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE)
+library(glitter)
+library(tidyverse)
+library(kableExtra)
+library(stringr)
+library(sequins)
+ show=function(dt){
+   dt %>% 
+     as.data.frame() %>% 
+     kable() %>% 
+     kable_styling(bootstrap_options = c("hover","condensed"),
+                 full_width = F,
+                 position = "float_left",
+                 font_size = 10)
+   }
+```
+
+
+## 1/22 Projet RECIT
+
+<div>
+
+![](img/im_timeline.jpg){width="1200px"}
+
+-   **Analyste de données** dans un labo de géographie (UMR 5600 Environnement Ville Société)
+
+-   Rôle **pédagogique**: aider les collègues à **utiliser R** pour leurs analyses/valorisation (blog[🔗](http://perso.ens-lyon.fr/lise.vaudor/))
+
+-   Travail d'**appui à la recherche** ➡ développement d'outils d'analyse, recueil de données du web (API, web-scraping...)
+
+- 2022, 2023: presta de 💪**Maëlle Salmon**
+- le projet prend fin: 🎉 {glitter} est prêt à être utilisé!! 🎉
+- 2024: que peut-on en faire en recherche?
+
+
+## 2/22 Web sémantique et Linked Open Data
+
+![© Camille Scheffler](img/web_des_donnees_cscheffler.png){width="1400px"}
+
+## 3/22 Web sémantique et Linked Open Data
+
+💡 **Web sémantique** Vision du web dans laquelle les données sont structurées et organisées pour être traitables par des machines ➡ lien étroit aux principes FAIR (Findable Accessible Interoperable Reusable)
+
+🧱️ **Linked Open Data**: Une réalisation concrète de cette vision, consistant en des données interconnectées et accessible sur le web. *Web des données*
+
+## 4/22 Formalisation des Linked Open Data
+
+![© Camille Scheffler](img/LOD_principes_cscheffler.png){width="1400px"} [exemple: URI correspondant au film "Marius et Jeannette" sur Wikidata](https://www.wikidata.org/wiki/Q3293881)
+
+## 5/22 Package glitter: objectifs
+
+![](img/logo_small.png)
+
+🎯 Promouvoir l'usage (exploration, recueil, analyse) des données du web sémantique pour les chercheur·se·s et étudiant·e·s **usagers de R**, en:
+
+-   facilitant l'**écriture** des requêtes SPARQL
+-   facilitant l'**envoi** des requêtes
+-   favoriser l'analyse/valorisation ultérieure dans R
+
+En tant que "**Domain Specific Language**" (DSL), glitter correspond à une *syntaxe* et des *fonctions* plus proches du tidyverse et base R que de SPARQL.
+
+## 6/22 Linked Open Data: difficultés d'appropriation et de collecte
+
+::: columns
+::: {.column width="50%"}
+-   👀 ce qu'on appréhende directement: le web documentaire
+-   💭 difficultés liées à la structure des données en graphes
+-   🔮 métadonnées intégrées aux données
+-   🧠️ transformation en données tabulaires pour analyses
+-   ⛏️ difficultés de collecte (SPARQL)
+:::
+
+::: {.column width="50%"}
+![Du graphe de connaissances au tableau de données](img/donnees_en_graphe.png){width="600px"}
+:::
+:::
+
+## 7/22 Exemple de requête simple
+
+::: columns
+::: {.column width="50%"}
+Dans R, sans glitter:
+
+```{r bef_glitter, eval=FALSE}
+query <- 'SELECT ?flood ?floodLabel WHERE {
+?flood wdt:P31 wd:Q8068. 
+SERVICE wikibase:label{bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en".} }
+LIMIT 10'
+
+tib <- WikidataQueryServiceR::query_wikidata(query)
+```
+
+-   🖊️ Rédaction et envoi de commandes R
+-   🎁 Recueil du tableau de résultats en tant qu'objet R
+-   🎯 Chaîne de traitement reproductible
+:::
+
+::: {.column width="50%"}
+Dans R, avec glitter:
+
+```{r glitter_no_SPARQL}
+tib <- spq_init() %>%
+  spq_add("?flood wdt:P31 wd:Q8068") %>%
+  spq_label(flood) %>% 
+  spq_head(n=10) %>% 
+  spq_perform() 
+```
+
+```{r show_result_init, echo=FALSE}
+tib
+```
+:::
+:::
+
+## 8/22 Par où commencer? Quels sont les descripteurs?
+
+[Exemple: inondation de Vaison-la-Romaine en 92](https://www.wikidata.org/wiki/Q16010610)
+
+![](img/Wikidata_inondation_Vaison.png)
+
+## 9/22 Par où commencer? Faire une première requête
+
+[Premières requêtes via Wikidata Query Service (WDQS)]()
+![](img/WDQS.png)
+
+
+
+```{r steps, echo=FALSE}
+query <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P1120 ?deathtoll",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) %>% 
+    spq_add("?article schema:about ?flood",.required=FALSE) %>% 
+    spq_label(flood,country,loc) 
+
+steps=plot_query(query,show_step=TRUE)
+```
+
+## 10a/22 Un exemple de requête enrichie
+
+
+```{r show_step1, echo=FALSE, fig.height=3}
+steps[[1]]
+```
+
+```{r step1}
+step1 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") 
+step1 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+## 10b/22 Un exemple de requête enrichie
+
+```{r show_step2, echo=FALSE, fig.height=3}
+steps[[2]]
+```
+
+```{r step2}
+step2 = spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>%
+    spq_add("?flood wdt:P625 ?coords")
+step2 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+
+
+## 10c/22 Un exemple de requête enrichie
+
+```{r show_step2_bis, echo=FALSE, fig.height=3}
+steps[[2]]
+```
+
+```{r step2_bis}
+step2 = spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>%
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) 
+step2 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+## 10d/22 Un exemple de requête enrichie
+
+
+```{r show_step3, echo=FALSE, fig.height=3}
+steps[[3]]
+```
+
+```{r step3}
+step3 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) 
+step3 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+## 10e/.. Un exemple de requête enrichie
+
+
+```{r show_step4, echo=FALSE, fig.height=3}
+steps[[4]]
+```
+
+```{r step4}
+step4 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) 
+step4 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+## 10f/.. Un exemple de requête enrichie
+
+
+```{r show_step5, echo=FALSE, fig.height=3}
+steps[[5]]
+```
+
+```{r step5, error=TRUE}
+step5 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) %>%
+    spq_add("?flood wdt:P1120 ?deathtoll",.required=FALSE) 
+step5 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
+```
+
+## 10g/.. Un exemple de requête enrichie
+
+
+```{r show_step6, echo=FALSE, fig.height=3}
+steps[[6]]
+```
+
+```{r step6, error=TRUE}
+step6 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) %>% 
+    spq_add("?flood wdt:P1120 ?deathtoll",.required=FALSE) %>%
+    spq_add("?article schema:about ?flood",.required=FALSE) 
+step6 %>% spq_summarise(n_lines=n()) %>%  spq_perform()      
+```
+
+
+## 10h/.. Un exemple de requête enrichie
+
+
+```{r show_step7, echo=FALSE, fig.height=3}
+steps[[7]]
+```
+
+```{r step7, error=TRUE}
+step7 <- spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>% 
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) %>% 
+    spq_add("?flood wdt:P1120 ?deathtoll",.required=FALSE) %>%
+    spq_add("?article schema:about ?flood",.required=FALSE) %>% 
+    spq_label(flood, country, loc)
+step7 %>% spq_summarise(n_lines=n()) %>%  spq_perform()      
+```
+
+## 10i/22 Résultat requête
+
+```{r run_query}
+result=step7 %>%
+  spq_head(200) %>% 
+  spq_perform()
+
+result %>% 
+  dplyr::select(flood_label,country_label,coords,loc_label,country_label)
+```
+
+
+## 11/22 Requête idéale
+
+```{r ideal_query, fig.height=8,fig.widht=10, echo=FALSE, eval=FALSE}
+query=spq_init() %>%
+    spq_add("?flood wdt:P31/wdt:P279* wd:Q8068") %>%
+    spq_add("?flood wdt:P625 ?coords",.required=FALSE) %>%
+    spq_add("?flood wdt:P17 ?country",.required=FALSE) %>%
+    spq_add("?flood wdt:P1120 ?deathtoll",.required=FALSE) %>%
+    spq_add("?flood wdt:P276 ?loc",.required=FALSE) %>%
+    spq_add("?loc wdt:P625 ?coords_loc") %>%
+    spq_add("?article schema:about ?flood",.required=FALSE) %>%
+    spq_add("?country wdt:P625 ?coords_country") %>%
+    spq_add("?country wdt:P1082 ?pop") %>%
+    spq_add("?country wdt:P2046 ?area") %>%
+    spq_add("?country wdt:P1081 ?HDI") %>%
+    spq_add("?country wdt:P37 ?lang_o") %>%
+    spq_add("?country wdt:P2936 ?lang_u") %>%
+    spq_add("?lang_o wdt:P424 ?lang_oc") %>%
+    spq_add("?lang_u wdt:P424 ?lang_uc") %>%
+    spq_add("?flood p:P585/psv:P585 ?time_s") %>%
+    spq_add("?time_s wikibase:timeValue ?time") %>%
+    spq_add("?time_s wikibase:timePrecision ?time_prec",.required=FALSE) %>%
+    spq_add(glue::glue("?flood p:P580/psv:P580 ?start_s")) %>%
+    spq_add("?start_s wikibase:timeValue ?start") %>%
+    spq_add("?start_s wikibase:timePrecision ?start_p",.required=FALSE) %>%
+    spq_add(glue::glue("?flood p:P582/psv:P582 ?end_s")) %>%
+    spq_add("?end_s wikibase:timeValue ?end") %>%
+    spq_add("?end_s wikibase:timePrecision ?end_p",.required=FALSE) %>%
+    spq_label(flood,country)
+sequins::plot_query(query)
+```
+
+![](img/graphe.png)
+
+## 12/22 Requête idéale
+
+![](img/graphe_couleurs.png)
+
+
+## 13/22 Dimensionnement des requêtes
+
+Temps de réponse du serveur limité par un paramètre de Time out:
+
+-   Wikidata Query Service : 60s ❌
+-   client (par ex. glitter): 300s ❌
+
+Requête **trop volumineuse**
+
+➡️ Comment interroger l'ensemble du sous-graphe souhaité?
+
+
+## 14/22 Combinaison de requêtes
+
+🗺️ On veut récupérer un certain nombre de  **descripteurs** pour chacun des pays où a eu lieu une inondation.
+
+
+```{r combi_queries_country_attributes}
+get_country_attributes=function(country_id){
+  result=spq_init() %>%
+      spq_set(country=country_id) %>%
+      spq_add("?country wdt:P625 ?coords_country") %>%
+      spq_add("?country wdt:P1082 ?pop") %>%
+      spq_add("?country wdt:P2046 ?area") %>%
+      spq_add("?country wdt:P1081 ?HDI") %>%
+      spq_perform()
+  return(result)
+}
+get_country_attributes("wd:Q142")
+```
+
+## 15/22 Combinaison de requêtes
+
+
+🈯 On veut récupérer les **langues** officielles et d'usage (et leur code Wikimedia en 2 ou 3 lettres) pour chacun des pays où a eu lieu une inondation.
+
+```{r combi_queries_country_languages}
+get_country_languages=function(country_id){
+  result=spq_init() %>%
+      spq_set(country=country_id) %>%
+      spq_add("?country wdt:P37 ?lang_o") %>%
+      spq_add("?country wdt:P2936 ?lang_u") %>%
+      spq_add("?lang_o wdt:P424 ?lang_oc") %>%
+      spq_add("?lang_u wdt:P424 ?lang_uc") %>% 
+      spq_label(lang_o, lang_u) %>% 
+      spq_select(-lang_o,-lang_u) %>% 
+      spq_perform()
+  return(result)
+}
+get_country_languages("wd:Q142")
+```
+
+## 16/22 Package glitter: vue d'ensemble
+
+![](img/tidyverse_logo.jpeg){width="50px"} Un package qui suit quelques principes du tidyverse...
+
+-   usage du **pipe %\>%**
+-   fonctions à **préfixe** (ici `spq_`)
+-   vise à la **facilité d'utilisation** (décomposition en étapes élémentaires)
+-   **évaluation** tidy (référence directe aux noms de variables)
+-   attention accordée à la **documentation** (par exemple via des **vignettes**)
+
+## 17/22 Package glitter: fonctions principales
+
+::: columns
+::: {.column width="50%"}
+Fonctions de base:
+
+-   spq_init() pour initier une requête
+-   spq_add() pour rajouter un motif de triplet
+-   spq_perform() pour envoyer la requête
+-   spq_set() pour fixer la valeur d'un ou plusieurs items
+:::
+
+::: {.column width="50%"}
+![](img/dplyr_logo.jpeg){width="50px"} Fonctions inspirées de dplyr :
+
+-   spq_filter()
+-   spq_select()
+-   spq_arrange()
+-   spq_mutate()
+-   spq_group_by()
+-   spq_summarise()
+
+➡️ "Where the magic is" (Maëlle)
+:::
+:::
+
+## 18/22 Utiliser les LOD pour recueillir et compléter des données
+
+🌊 Exploiter la richesse thématique des données Wikidata pour :
+
+- la construction de **jeux de données pédagogiques**
+- la **complétion de jeux de données institutionnels** (par opposition à du contenu généré par l'utilisateur)
+
+Exemples:
+
+- 🌻 données **botaniques** ➡️ associer une photo et un nom vernaculaire à un nom d'espèce en latin
+- 📜 corpus de **communiqués de presse du Ministère de l'Ecologie** ➡️ récupérer le nom du ministre, avec les dates de début et de fin de son mandat.
+- 🌍 **carte du monde** basée sur un shapefile avec des codes pays ➡️ récupérer les noms de pays, le nom et les coordonnées de leur capitales
+
+## 19/22 Utiliser les LOD pour recueillir et compléter des données
+
+Discussion sur l'exemple des inondations par **comparaison avec un jeu de données institutionnel**
+
+**Dartmouth Flood Observatory** : recensement de toutes les inondations des années 80 à nos jours :
+
+- 🛰️ premier recensement par **données satellitaires** ️
+- 📰 confirmation par analyse de la **presse**
+
+➡️ Pourquoi un événement apparaît dans Wikidata?
+
+➡️ Pourquoi et comment est-il traité dans le ou les articles Wikipedia associés?
+
+## 20/22 Comparaison DFO - Wikidata
+
+![](img/fig-comp_WD_DFO-1.png){width="500px"}
+
+## 21/22 Thèmes Wikipedia
+
+::: columns
+::: {.column width="70%"}
+
+- **scraping et traduction** de tous les articles vers l'anglais
+- classification de Reinert (package rainette, Julien Barnier) pour **identifier des thématiques**  
+
+
+![](img/fig-topics-1.png){width="650px"}
+
+
+:::
+::: {.column width="30%"}
+
+- Narration de l'événement (weather, damage, relief) 
+- Discussion de sujets plus "complexes", recherche des **causes** (anticipation, governance, hydrology)
+
+:::
+:::
+
+## 22/22 Quand les thèmes complexes sont-ils abordés dans Wikipedia?
+
+🌲🌳🌲 Random forest: **proportion de sujets complexes** en fonction de **caractéristiques de l'événement et de l'article**.
+
+![](img/fig-complex_topics-1.png)
+
+
+
+# ANNEXES
+
+## Package glitter
+
+![](img/github_logo.png){width="25px"} Package installable et modifiable ici <https://github.com/lvaudor/glitter>.
+
+📄 https://lvaudor.github.io/glitter/
+
+📣 Retours utilisateurs bienvenus
+
+🧠 Cas d'usages: à vous de jouer!
+
+🙏 Merci pour votre attention!
+
+
+## Package Sequins
+
+<https://github.com/lvaudor/sequins>
+
+![](img/hex-sequins_small.png)
+
+## Appli WDWP_Floods
+
+Pour explorer les données relatives aux inondations, issues de Wikidata et Wikipedia
+
+<https://isig-apps-dev.evs.ens-lyon.fr/apps/lvaudor/WDWP_Floods/>
+

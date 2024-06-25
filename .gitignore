@@ -1,0 +1,5 @@
+/.quarto/
+docs
+.Rproj.user
+index_files
+index_cache
