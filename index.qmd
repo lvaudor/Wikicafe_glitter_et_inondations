@@ -215,7 +215,7 @@ step3 <- spq_init() %>%
 step3 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
 ```
 
-## 10e/.. Un exemple de requête enrichie
+## 10e/22 Un exemple de requête enrichie
 
 
 ```{r show_step4, echo=FALSE, fig.height=3}
@@ -231,7 +231,7 @@ step4 <- spq_init() %>%
 step4 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
 ```
 
-## 10f/.. Un exemple de requête enrichie
+## 10f/22 Un exemple de requête enrichie
 
 
 ```{r show_step5, echo=FALSE, fig.height=3}
@@ -248,7 +248,7 @@ step5 <- spq_init() %>%
 step5 %>% spq_summarise(n_lines=n()) %>%  spq_perform()       
 ```
 
-## 10g/.. Un exemple de requête enrichie
+## 10g/22 Un exemple de requête enrichie
 
 
 ```{r show_step6, echo=FALSE, fig.height=3}
@@ -267,7 +267,7 @@ step6 %>% spq_summarise(n_lines=n()) %>%  spq_perform()
 ```
 
 
-## 10h/.. Un exemple de requête enrichie
+## 10h/22 Un exemple de requête enrichie
 
 
 ```{r show_step7, echo=FALSE, fig.height=3}
